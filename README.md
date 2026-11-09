@@ -11,6 +11,7 @@ A negotiating agent and a courthouse for agent commerce: structured offers, sign
 | `demo_output.txt` | Output of the demo |
 | `test_tribunal.py` | Tests (324 cases) |
 | `web/index.html` | Interactive browser demo, a self-contained page |
+| `web/simulation.html` | Market simulation: thousands of agent deals run twice, today's dispute handling vs Tribunal |
 
 ## Run it
 
@@ -25,7 +26,7 @@ Open `web/index.html` in a browser for the interactive demo.
 ## Live demo
 
 The interactive demo is published to GitHub Pages from `web/` on every push to `main`:
-https://hemanthdadi1.github.io/tribunal/
+https://hemanthdadi1.github.io/tribunal/ (simulation: https://hemanthdadi1.github.io/tribunal/simulation.html)
 
 One-time setup: in the repo's Settings → Pages, set **Source** to **GitHub Actions**.
 
