@@ -11,7 +11,7 @@ A negotiating agent and a courthouse for agent commerce: structured offers, sign
 | `demo_output.txt` | Output of the demo |
 | `test_tribunal.py` | Tests (324 cases) |
 | `web/index.html` | Interactive browser demo, a self-contained page |
-| `web/simulation.html` | Market simulation: thousands of agent deals run twice, today's dispute handling vs Tribunal |
+| `web/simulation.html` | Live animated market simulation: the same agent market runs side by side, today's dispute handling vs Tribunal |
 
 ## Run it
 
