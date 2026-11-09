@@ -22,6 +22,13 @@ python -m pytest -q
 
 Open `web/index.html` in a browser for the interactive demo.
 
+## Live demo
+
+The interactive demo is published to GitHub Pages from `web/` on every push to `main`:
+https://hemanthdadi1.github.io/tribunal/
+
+One-time setup: in the repo's Settings → Pages, set **Source** to **GitHub Actions**.
+
 ## Design rules
 
 1. Strategy is separate from language: the language layer never sees private limits.
