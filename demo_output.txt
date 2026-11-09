@@ -1,0 +1,89 @@
+
+========================================================================
+1. Negotiation: refurbished laptop
+========================================================================
+  Seller's agent offers ₹39,500 with no warranty.
+  Buyer's agent offers ₹32,150 with a 90-day warranty.
+  Seller's agent offers ₹40,450 with a 90-day warranty.
+  Buyer's agent offers ₹32,200 with a 90-day warranty.
+  Seller's agent offers ₹39,850 with a 90-day warranty.
+  Buyer's agent offers ₹32,650 with a 90-day warranty.
+  Seller's agent offers ₹39,050 with a 90-day warranty.
+  Buyer's agent offers ₹33,400 with a 90-day warranty.
+  Seller's agent offers ₹37,950 with a 90-day warranty.
+  Buyer's agent offers ₹34,550 with a 90-day warranty.
+  Seller's agent offers ₹36,600 with a 90-day warranty.
+  Buyer's agent offers ₹35,450 with a 90-day warranty.
+  Seller's agent accepted ₹35,450 with a 90-day warranty.
+
+  Status: agreed after 13 messages
+  Buyer surplus:  ₹4,600
+  Seller surplus: ₹3,370
+  (Neither agent ever offered its own limit: ₹36,000 / ₹31,000.)
+
+========================================================================
+2. Approval, signed record, escrow
+========================================================================
+  digest  4c5cc4f3a424330cc04805092f76cab78154b6be5c362c1799e6a5586013e255
+  verify  OK
+
+========================================================================
+3a. Dispute: laptop arrived dead
+========================================================================
+  judge-a (provider-a): full_refund: Promised fully working; arrived dead.
+  judge-b (provider-b): full_refund: Good-quality evidence the device is dead.
+  judge-c (provider-c): full_refund: Device dead on arrival.
+  Tally: full_refund=3, abstain=0
+  Verdict: settled / full_refund / refund ₹35,450
+  Escrow: settled by tribunal: ₹35,450 to buyer, ₹0 to seller
+
+========================================================================
+3b. Dispute: battery 71% vs promised >= 80%
+========================================================================
+  judge-a (provider-a): partial_refund ₹4,500: Battery below promised minimum.
+  judge-b (provider-b): partial_refund ₹3,988: Battery 71% vs 80% promised.
+  judge-c (provider-c): release_to_seller: Shortfall within 10 points; de minimis.
+  Tally: partial_refund=2, release_to_seller=1, abstain=0
+  Verdict: settled / partial_refund / refund ₹4,244
+  Escrow: settled by tribunal: ₹4,244 to buyer, ₹31,206 to seller
+
+========================================================================
+3c. Dispute: screen flicker (conflicting evidence) + injection attempt
+========================================================================
+  judge-a (provider-a): partial_refund ₹6,000: Screen defect reported against 'fully working'.
+  judge-b (provider-b): release_to_seller: Best-quality evidence shows no breach.
+  judge-c (provider-c): abstain: Conflicting evidence on screen_ok.
+  Tally: partial_refund=1, release_to_seller=1, abstain=1
+  Note: evidence e1 from buyer contains an injection attempt; submitter flagged
+  Note: no majority on outcome
+  Verdict: escalated
+  Escrow: frozen: no majority on outcome
+  Human appeal -> release_to_seller, refund ₹0
+  Reputation flags: {'buyer': 1}
+
+========================================================================
+3d. Dispute filed with a tampered deal record
+========================================================================
+  Tally: -
+  Note: deal record failed integrity check: body does not match digest
+  Verdict: escalated
+  Escrow: frozen: deal record failed integrity check: body does not match digest
+
+========================================================================
+4. Stress test: 2,000 random negotiations
+========================================================================
+  Mandate violations in closed deals:          0
+  Deals possible (limits overlap):              1,611 / 2,000
+    closed by agents:                           1,364
+    closed via mediator proposal:               245
+    missed despite overlap:                     2
+  Median messages to agreement:                 14
+  Deals that include a warranty:                538
+
+  Limit leakage (seller offered within ₹100 of its true floor, in long negotiations):
+    plain concession curve:                     652/652 (100%)
+    with private stop-short margin:             0/882 (0%)
+
+  Value created by negotiating warranty as well as price (same random markets):
+    joint surplus per market, price only:       ₹4,802
+    joint surplus per market, price + warranty: ₹5,192
