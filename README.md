@@ -11,6 +11,9 @@ A negotiating agent and a courthouse for agent commerce: structured offers, sign
 | `demo_output.txt` | Output of the demo |
 | `test_tribunal.py` | Tests (324 cases) |
 | `web/index.html` | Interactive browser demo, a self-contained page |
+| `server.py` | HTTP API (standard library only); serves the pitch demo at `/` |
+| `web/pitch.html` | Four-act pitch walkthrough, driven by the live API |
+| `test_server.py` | API tests over real HTTP |
 
 ## Run it
 
@@ -21,6 +24,14 @@ python -m pytest -q
 ```
 
 Open `web/index.html` in a browser for the interactive demo.
+
+Pitch demo on the live API:
+
+```bash
+python server.py   # then open http://localhost:8000
+```
+
+API: `POST /negotiations`, `POST /deals/{id}/approve`, `GET /deals/{id}`, `POST /deals/{id}/disputes`, `POST /cases/{id}/appeal`. Private limits stay on the server and are never returned.
 
 ## Design rules
 
