@@ -14,6 +14,8 @@ A negotiating agent and a courthouse for agent commerce: structured offers, sign
 | `server.py` | HTTP API (standard library only); serves the pitch demo at `/` |
 | `web/pitch.html` | Four-act pitch walkthrough, driven by the live API |
 | `test_server.py` | API tests over real HTTP |
+| `mcp_server.py` | MCP server: lets any AI agent negotiate, sign and dispute deals |
+| `test_mcp_server.py` | MCP tests with a real client, in-process and over stdio |
 
 ## Run it
 
@@ -32,6 +34,17 @@ python server.py   # then open http://localhost:8000
 ```
 
 API: `POST /negotiations`, `POST /deals/{id}/approve`, `GET /deals/{id}`, `POST /deals/{id}/disputes`, `POST /cases/{id}/appeal`. Private limits stay on the server and are never returned.
+
+### MCP server
+
+Agents can use Tribunal directly as MCP tools: `negotiate`, `approve_deal`, `get_deal`, `file_dispute`.
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install "mcp>=2" cryptography pytest
+claude mcp add tribunal -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"
+```
+
+Appeals are not exposed as a tool: only a human arbitrator can release a frozen escrow.
 
 ## Design rules
 
