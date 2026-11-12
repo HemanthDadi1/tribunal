@@ -1,0 +1,21 @@
+<section id="sign" data-transition="fade" style="background:#f5f3ee;color:#1d1c1a;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:56px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;letter-spacing:3px;color:#1c58b3">STEPS 2 AND 3 · SIGN AND ESCROW</p>
+<h2 style="font-family:'Newsreader', Georgia, serif;font-size:72px;font-weight:600;line-height:1.1">Nothing is binding until both people say yes</h2>
+<div style="display:flex;gap:64px;align-items:start">
+<div style="flex:1;display:flex;flex-direction:column;gap:28px">
+<p style="font-size:32px;line-height:1.4;color:#4a4740">An agent’s agreement is only a proposal. Once both people approve, the deal becomes a record both of them sign.</p>
+<ul style="font-size:28px;line-height:1.5;color:#4a4740">
+<li>Ed25519 signatures, checked against an independent identity registry</li>
+<li>Hashes of the listing and the full transcript are sealed in</li>
+<li>Each side keeps a copy, so the platform can’t rewrite history</li>
+<li>Payment sits in escrow until delivery and the dispute window close</li>
+</ul>
+</div>
+<div style="width:720px;background:#1d1c1a;border-radius:16px;padding:40px;display:flex;flex-direction:column;gap:8px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;line-height:1.6;color:#d6d2c9">"deal_id": "d_8f21",<br>"price": 35450,<br>"warranty_days": 90,<br>"buyer": "asha",<br>"seller": "ravi",<br>"transcript_sha256": "…",<br>"digest": "4c5cc4f3…6e255"</p>
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#5cc48c">verify → OK · escrow held ₹35,450</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-size:24px;color:#6a655c">Tribunal · 07</p>
+<aside>The deal record is the single source of truth for any dispute. Because it is signed by both parties and each keeps a copy, neither the other party nor the platform can quietly change the price afterwards. If a record does not verify, the Tribunal does not guess who tampered with it: it freezes the escrow and sends it to a human.</aside>
+</section>
