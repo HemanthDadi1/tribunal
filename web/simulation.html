@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Who Settles It? Agent Market Simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<style>
+/* Layout: a control bar with the shared clock; two live market panels side by side (Today | Tribunal), each with counters, a canvas and a case feed; settings and assumptions below. */
+:root{
+  --bg:#f5f3ee; --surface:#fcfcfb; --sunken:#eeebe4; --line:#dcd7cc; --text:#1d1c1a; --muted:#5d5952;
+  --tribunal:#2a78d6; --today:#eb6834; --good:#1d8550; --bad:#c23b2a;
+  --display:"Newsreader", Georgia, "Times New Roman", serif;
+  --body:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111214; --surface:#1a1a19; --sunken:#242523; --line:#33342f; --text:#f0efec; --muted:#c3c2b7;
+    --tribunal:#3987e5; --today:#d95926; --good:#5cc48c; --bad:#f0786a; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111214; --surface:#1a1a19; --sunken:#242523; --line:#33342f; --text:#f0efec; --muted:#c3c2b7;
+  --tribunal:#3987e5; --today:#d95926; --good:#5cc48c; --bad:#f0786a; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:15px/1.5 var(--body);-webkit-font-smoothing:antialiased}
+main{max-width:1180px;margin:0 auto;padding:24px 16px 56px;display:grid;gap:16px}
+h1,h2{font-family:var(--display);font-weight:600;margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:32px;line-height:1.1} h2{font-size:20px}
+p{margin:0}
+.lede{color:var(--muted);max-width:76ch;margin-top:6px}
+.num{font-variant-numeric:tabular-nums}
+.note{font-size:12.5px;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+
+/* control bar */
+.bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:0;z-index:5;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.clock{font-family:var(--mono);font-size:20px;font-weight:500;min-width:170px}
+.clock small{display:block;font:12px var(--body);color:var(--muted)}
+.prog{flex:1;min-width:120px;height:6px;border-radius:3px;background:var(--sunken);overflow:hidden}
+.prog span{display:block;height:100%;width:0;background:var(--text)}
+button{font:500 14px/1 var(--body);color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer}
+button.primary{background:var(--text);color:var(--bg);border-color:var(--text);min-width:92px}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--tribunal);outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:9px 11px}
+.seg button[aria-pressed="true"]{background:var(--text);color:var(--bg)}
+.check{display:inline-flex;gap:7px;align-items:center;font-size:13.5px;color:var(--muted)}
+
+/* market panels */
+.worlds{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.world{display:grid;gap:10px;align-content:start}
+.world header{display:flex;align-items:center;gap:10px}
+.world header h2{display:flex;align-items:center;gap:9px}
+.world header .sw{width:12px;height:12px;border-radius:3px}
+.world.today .sw{background:var(--today)} .world.tribunal .sw{background:var(--tribunal)}
+.world header p{font-size:13px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.stat{background:var(--sunken);border-radius:8px;padding:8px 10px}
+.stat .k{font-size:11.5px;color:var(--muted);line-height:1.3}
+.stat .v{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.3}
+canvas{width:100%;height:440px;display:block;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
+.feed{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:12.5px;min-height:132px}
+.feed li{display:grid;grid-template-columns:96px 1fr;gap:8px;padding:5px 8px;border-radius:6px;background:var(--sunken)}
+.feed li .t{font-family:var(--mono);color:var(--muted);font-size:11.5px}
+.feed li.hot{box-shadow:inset 3px 0 0 var(--bad)}
+.feed li.win{box-shadow:inset 3px 0 0 var(--good)}
+.key{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+.key span{display:inline-flex;gap:6px;align-items:center}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.summary{display:none;border-radius:10px;padding:12px 14px;background:var(--sunken);font-size:14px}
+.summary.show{display:block}
+
+/* settings */
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px 22px;margin-top:12px}
+.ctl{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center}
+.ctl label{font-size:13.5px} .ctl output{font-weight:500;font-variant-numeric:tabular-nums}
+.ctl input{grid-column:1 / -1;width:100%;accent-color:var(--text)}
+details summary{cursor:pointer;font-weight:500}
+.assume{columns:2 300px;column-gap:28px;font-size:13px;color:var(--muted);margin:10px 0 0;padding-left:18px}
+.assume li{break-inside:avoid;margin-bottom:4px}
+@media (max-width: 900px){ .worlds{grid-template-columns:1fr} canvas{height:400px} }
+@media (max-width: 520px){ .stats{grid-template-columns:repeat(2,minmax(0,1fr))} .feed li{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Who settles it? A live agent marketplace</h1>
+    <p class="lede">Shopping agents buy refurbished laptops and travel agents book hotels around the clock. Some sellers' agents misdescribe what they sell. Watch the same market run twice: on the left, problems go to support tickets and chargebacks; on the right, to escrow and the Tribunal's three-judge panel.</p>
+  </header>
+
+  <div class="bar" role="group" aria-label="Simulation controls">
+    <button id="play" class="primary" type="button">❚❚ Pause</button>
+    <button id="restart" type="button">↺ Restart</button>
+    <div class="seg" role="group" aria-label="Speed">
+      <button type="button" data-speed="2">Slow</button>
+      <button type="button" data-speed="8">Normal</button>
+      <button type="button" data-speed="24" aria-pressed="true">Fast</button>
+      <button type="button" data-speed="72">Very fast</button>
+    </div>
+    <div class="clock num" id="clock" aria-live="off">Day 1 · 00:00<small>simulated time</small></div>
+    <div class="prog" aria-hidden="true"><span id="prog"></span></div>
+    <label class="check"><input id="reveal" type="checkbox"> Mark the sellers that misrepresent</label>
+  </div>
+
+  <div class="key" aria-label="Key">
+    <span><i class="dot" style="background:var(--muted)"></i>Deal</span>
+    <span><i class="dot" style="background:var(--bad)"></i>Claim filed</span>
+    <span><i class="dot" style="background:var(--good)"></i>Refund to buyer</span>
+    <span><i class="dot" style="background:var(--text)"></i>Funds released to seller</span>
+    <span>Seller tiles redden as they lose rulings; a cross means suspended</span>
+  </div>
+
+  <div class="worlds">
+    <section class="world today" aria-labelledby="h-today">
+      <header><h2 id="h-today"><i class="sw"></i>Today</h2><p>Support tickets and chargebacks</p></header>
+      <div class="stats" id="stats-today"></div>
+      <canvas id="cv-today" aria-label="Animated market: today's dispute handling"></canvas>
+      <ul class="feed" id="feed-today"></ul>
+    </section>
+    <section class="world tribunal" aria-labelledby="h-trib">
+      <header><h2 id="h-trib"><i class="sw"></i>Tribunal</h2><p>Escrow, AI panel, human appeals, reputation</p></header>
+      <div class="stats" id="stats-tribunal"></div>
+      <canvas id="cv-tribunal" aria-label="Animated market: Tribunal dispute handling"></canvas>
+      <ul class="feed" id="feed-tribunal"></ul>
+    </section>
+  </div>
+  <div class="summary" id="summary" aria-live="polite"></div>
+
+  <section class="panel">
+    <details>
+      <summary>Market settings (changes restart the run)</summary>
+      <div class="controls">
+        <div class="ctl"><label for="p-dis">Sellers that misrepresent</label><output for="p-dis"></output><input id="p-dis" type="range" min="0" max="40" step="1" value="15"></div>
+        <div class="ctl"><label for="p-false">Buyers who file false claims</label><output for="p-false"></output><input id="p-false" type="range" min="0" max="10" step="0.5" value="3"></div>
+        <div class="ctl"><label for="p-ev">Disputes with good evidence</label><output for="p-ev"></output><input id="p-ev" type="range" min="30" max="95" step="5" value="70"></div>
+        <div class="ctl"><label for="p-vol">Agent deals per day</label><output for="p-vol"></output><input id="p-vol" type="range" min="100" max="2000" step="100" value="600"></div>
+        <div class="ctl"><label for="p-days">Days simulated</label><output for="p-days"></output><input id="p-days" type="range" min="10" max="60" step="5" value="30"></div>
+      </div>
+      <p style="margin-top:12px"><button id="newmarket" type="button">New random market</button> <span class="note" id="seedline"></span></p>
+    </details>
+  </section>
+
+  <section class="panel">
+    <details>
+      <summary>Assumptions (illustrative figures, not measured data)</summary>
+      <ul class="assume">
+        <li>120 buyers' agents, 40 laptop sellers and 40 hotels. Honest sellers have a problem on 3% of deals; misrepresenting sellers on 35%, and are 30% more likely to be picked today because they list lower prices.</li>
+        <li>Laptops cost ₹15,000–60,000 and arrive in 1–3 days. Hotel stays cost ₹2,000–9,000 a night for 1–3 nights, with check-in 4–48 hours after booking.</li>
+        <li>Laptop problems: dead on arrival (full refund) or battery below promise (12% refund). Hotel problems: no room (full refund) or no pool (25% refund).</li>
+        <li>Today, buyers pursue 35% of problems under ₹5,000 and 70% above. A claim takes 7–45 days and costs ₹600 to handle. Buyers win 75% with good evidence, 40% with poor, and 30% of false claims succeed.</li>
+        <li>With Tribunal, agents file 97% of problems. Each judge is right 92% of the time with good evidence and 72% with poor, and abstains 30% of the time on poor evidence. Splits and appeals go to a human (95% right, 2–5 days).</li>
+        <li>Reputation updates when a ruling lands. Buyer agents avoid sellers who lose often; sellers losing over 20% of 20+ deals are suspended.</li>
+      </ul>
+    </details>
+  </section>
+</main>
+
+<script id="sim-core">
+"use strict";
+// ======================================================================
+// Engine (pure, no DOM). Produces a timeline of deals, claims, decisions and
+// suspensions for one world. Time is in simulated hours from the start.
+// ======================================================================
+const SIM = (() => {
+  function rngFrom(seed) {
+    let a = seed >>> 0;
+    return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  const SELLERS_PER_CAT = 40, BUYERS = 120, HONEST_RATE = 0.03, BAD_RATE = 0.35, CHEAP_PULL = 1.3;
+
+  function heap() {
+    const a = [];
+    return {
+      get size() { return a.length; }, peek: () => a[0],
+      push(x) { a.push(x); let i = a.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (a[p].t <= a[i].t) break; [a[p], a[i]] = [a[i], a[p]]; i = p; } },
+      pop() { const top = a[0], last = a.pop(); if (a.length) { a[0] = last; let i = 0;
+        for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < a.length && a[l].t < a[m].t) m = l; if (r < a.length && a[r].t < a[m].t) m = r; if (m === i) break; [a[m], a[i]] = [a[i], a[m]]; i = m; } }
+        return top; }
+    };
+  }
+
+  function resolveToday(c, r) {
+    const filed = c.problem ? r() < (c.claim < 5000 ? 0.35 : 0.7) : true;
+    if (!filed) return { filed: false, buyerWins: false, days: 0, cost: 0 };
+    return { filed: true, buyerWins: r() < (c.problem ? (c.good ? 0.75 : 0.4) : 0.3), days: 7 + r() * 38, cost: 600 };
+  }
+  function resolveTribunal(c, r) {
+    const filed = c.problem ? r() < 0.97 : true;
+    if (!filed) return { filed: false, buyerWins: false, days: 0, cost: 0 };
+    const truth = c.problem; let forBuyer = 0, forSeller = 0, abstain = 0;
+    for (let j = 0; j < 3; j++) {
+      if (!c.good && r() < 0.3) { abstain++; continue; }
+      const right = r() < (c.good ? 0.92 : 0.72);
+      ((right ? truth : !truth) ? forBuyer++ : forSeller++);
+    }
+    let days = (2 + r() * 22) / 24, cost = 30, human = false, decision, appealed = false, overturned = false;
+    if (Math.max(forBuyer, forSeller) >= 2) {
+      decision = forBuyer >= 2;
+      if (r() < (decision !== truth ? 0.6 : 0.05)) {
+        appealed = human = true; cost += 1500; days += 2 + r() * 3;
+        const next = r() < 0.95 ? truth : !truth; overturned = next !== decision; decision = next;
+      }
+    } else { human = true; cost += 1500; days += 2 + r() * 3; decision = r() < 0.95 ? truth : !truth; }
+    return { filed: true, buyerWins: decision, days, cost, human, appealed, overturned, votes: { forBuyer, forSeller, abstain } };
+  }
+
+  function runWorld(world, p, seed) {
+    const r = rngFrom(seed);
+    const sellers = [];
+    for (const cat of ["laptop", "hotel"])
+      for (let i = 0; i < SELLERS_PER_CAT; i++)
+        sellers.push({ idx: sellers.length, id: (cat === "laptop" ? "L" : "H") + "-" + String(i + 1).padStart(2, "0"), cat,
+          dishonest: r() < p.dishonest, deals: 0, lost: 0, suspended: false });
+    const deals = [], disputes = [], suspensions = [], daily = [], pending = heap();
+    for (let d = 0; d < p.days; d++) {
+      const times = Array.from({ length: p.perDay }, () => d * 24 + r() * 24).sort((a, b) => a - b);
+      const day = { deals: 0, bad: 0 };
+      for (const t of times) {
+        while (pending.size && pending.peek().t <= t) {           // rulings land, reputation updates
+          const e = pending.pop(), s = sellers[e.seller];
+          if (e.buyerWins) s.lost++;
+          if (world === "tribunal" && !s.suspended && s.deals >= 20 && s.lost / s.deals > 0.2) {
+            s.suspended = true; suspensions.push({ t: e.t, seller: s.idx, lost: s.lost, deals: s.deals });
+          }
+        }
+        const cat = r() < 0.5 ? "laptop" : "hotel";
+        const pool = sellers.filter(s => s.cat === cat && !s.suspended);
+        const buyer = Math.floor(r() * BUYERS);
+        if (!pool.length) continue;
+        const w = pool.map(s => (s.dishonest ? CHEAP_PULL : 1) * (world === "tribunal" ? Math.exp(-6 * s.lost / (s.deals + 20)) : 1));
+        let x = r() * w.reduce((a, b) => a + b, 0), s = pool[pool.length - 1];
+        for (let i = 0; i < pool.length; i++) { x -= w[i]; if (x <= 0) { s = pool[i]; break; } }
+        s.deals++; day.deals++; if (s.dishonest) day.bad++;
+        deals.push({ t, buyer, seller: s.idx, bad: s.dishonest });
+
+        const nights = 1 + Math.floor(r() * 3);
+        const amount = cat === "laptop" ? Math.round((15000 + r() * 45000) / 100) * 100 : Math.round((2000 + r() * 7000) * nights / 50) * 50;
+        const problem = r() < (s.dishonest ? BAD_RATE : HONEST_RATE);
+        const falseClaim = !problem && r() < p.falseClaims;
+        const typeDraw = r(), good = r() < p.evidence, delay = cat === "laptop" ? 24 + r() * 48 : 4 + r() * 44;
+        if (!problem && !falseClaim) continue;
+        let kind, claim;
+        if (cat === "laptop") { kind = (problem ? typeDraw < 0.4 : true) ? "dead" : "battery"; claim = kind === "dead" ? amount : Math.round(amount * 0.12 / 50) * 50; }
+        else { kind = (problem ? typeDraw < 0.4 : true) ? "noroom" : "pool"; claim = kind === "noroom" ? amount : Math.round(amount * 0.25 / 50) * 50; }
+        const c = { t, buyer, seller: s.idx, sellerId: s.id, cat, kind, amount, nights, claim, problem, good, claimT: t + delay };
+        c.res = world === "tribunal" ? resolveTribunal(c, r) : resolveToday(c, r);
+        c.decideT = c.res.filed ? c.claimT + c.res.days * 24 : null;
+        disputes.push(c);
+        if (c.res.filed) pending.push({ t: c.decideT, seller: s.idx, buyerWins: c.res.buyerWins });
+      }
+      daily.push(day);
+    }
+    return { world, sellers: sellers.map(({ idx, id, cat, dishonest }) => ({ idx, id, cat, dishonest })), deals, disputes, suspensions, daily, hours: p.days * 24 };
+  }
+  return { runWorld, BUYERS, SELLERS_PER_CAT };
+})();
+if (typeof module !== "undefined") module.exports = SIM;
+</script>
+
+<script>
+"use strict";
+// ======================================================================
+// Live playback
+// ======================================================================
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const inr = n => "₹" + Math.round(n).toLocaleString("en-IN");
+const inrShort = n => n >= 1e7 ? "₹" + (n / 1e7).toFixed(2) + " cr" : n >= 1e5 ? "₹" + (n / 1e5).toFixed(1) + " lakh" : inr(n);
+const fmtDur = h => h < 24 ? Math.round(h) + " h" : (h / 24).toFixed(h < 240 ? 1 : 0) + " days";
+const clock = t => `Day ${Math.floor(t / 24) + 1} · ${String(Math.floor(t % 24)).padStart(2, "0")}:${String(Math.floor((t * 60) % 60)).padStart(2, "0")}`;
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let C = {};
+function readColors() {
+  const cs = getComputedStyle(document.documentElement), v = n => cs.getPropertyValue(n).trim();
+  C = { bg: v("--bg"), surface: v("--surface"), sunken: v("--sunken"), line: v("--line"), text: v("--text"), muted: v("--muted"),
+        good: v("--good"), bad: v("--bad"), today: v("--today"), tribunal: v("--tribunal"),
+        body: getComputedStyle(document.body).fontFamily };
+}
+const median = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+
+function label(c) {
+  if (c.cat === "laptop") return c.problem ? `${c.sellerId} laptop ${c.kind === "dead" ? "arrived dead" : "battery below promise"}` : `false claim: ${c.sellerId} laptop "dead"`;
+  return c.problem ? `${c.sellerId} hotel: ${c.kind === "noroom" ? "no room on arrival" : "no pool"}` : `false claim: ${c.sellerId} "no room"`;
+}
+
+function makePanel(world, data, canvas, statsEl, feedEl) {
+  const ctx = canvas.getContext("2d");
+  const P = { world, data, particles: [], flash: null, feed: [], lastFeed: -1e9 };
+  const claims = [...data.disputes].sort((a, b) => a.claimT - b.claimT);
+  const decisions = data.disputes.filter(c => c.res.filed).sort((a, b) => a.decideT - b.decideT);
+  const sel = data.sellers.map(s => ({ ...s, deals: 0, lost: 0, suspended: false }));
+  const buyerFlash = new Float64Array(SIM.BUYERS);
+  let iDeal = 0, iClaim = 0, iDec = 0, iSusp = 0;
+  const st = { lost: 0, open: 0, decided: 0, gaveUp: 0, waits: [], refunded: 0 };
+  let L = {};
+
+  function layout() {
+    const dpr = window.devicePixelRatio || 1, W = canvas.clientWidth, H = canvas.clientHeight;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const top = 40, bottom = H - 14;
+    const bx0 = 14, bx1 = Math.max(110, W * 0.22), bCols = 8, bRows = SIM.BUYERS / bCols;
+    const buyers = Array.from({ length: SIM.BUYERS }, (_, i) => ({ x: bx0 + (i % bCols + 0.5) * (bx1 - bx0) / bCols, y: top + (Math.floor(i / bCols) + 0.5) * (bottom - top) / bRows }));
+    const sx0 = W * 0.68, sx1 = W - 14, sCols = 4, half = SIM.SELLERS_PER_CAT / sCols, gap = 22;
+    const rowH = (bottom - top - gap) / (2 * half), cellW = (sx1 - sx0) / sCols;
+    const sellers = sel.map(s => { const j = s.cat === "laptop" ? s.idx : s.idx - SIM.SELLERS_PER_CAT, row = Math.floor(j / sCols), col = j % sCols;
+      const y = top + row * rowH + (s.cat === "hotel" ? half * rowH + gap : 0);
+      return { x: sx0 + col * cellW + 2, y: y + 2, w: cellW - 4, h: rowH - 4, cx: sx0 + col * cellW + cellW / 2, cy: y + rowH / 2 }; });
+    const box = { x: W * 0.30, y: H * 0.30, w: W * 0.30, h: H * 0.40 };
+    box.cx = box.x + box.w / 2; box.cy = box.y + box.h / 2;
+    L = { W, H, buyers, sellers, box, top, sx0, gap, half, rowH };
+  }
+
+  function spawn(a, b, color, r, now, dur) {
+    if (reduceMotion || P.particles.length > 700) return;
+    P.particles.push({ x0: a.x ?? a.cx, y0: a.y ?? a.cy, x1: b.x ?? b.cx, y1: b.y ?? b.cy, start: now, dur, color, r });
+  }
+  function pushFeed(t, text, cls, important, now) {
+    if (!important && now - P.lastFeed < 900) return;
+    P.lastFeed = now; P.feed.unshift({ t, text, cls }); P.feed.length = Math.min(P.feed.length, 6); P.feedDirty = true;
+  }
+
+  function advance(simT, now, sample) {
+    const D = data;
+    while (iDeal < D.deals.length && D.deals[iDeal].t <= simT) {
+      const d = D.deals[iDeal++]; sel[d.seller].deals++;
+      if (Math.random() < sample) spawn(L.buyers[d.buyer], L.sellers[d.seller], C.muted, 1.6, now, 650);
+    }
+    while (iClaim < claims.length && claims[iClaim].claimT <= simT) {
+      const c = claims[iClaim++];
+      if (c.res.filed) { st.open++; spawn(L.buyers[c.buyer], L.box, C.bad, 3, now, 900); }
+      else {
+        st.gaveUp++; st.lost += c.claim; buyerFlash[c.buyer] = now;
+        if (world === "today") pushFeed(c.claimT, `${label(c)} → buyer gave up on ${inr(c.claim)}; seller keeps it`, "hot", false, now);
+      }
+    }
+    while (iDec < decisions.length && decisions[iDec].decideT <= simT) {
+      const c = decisions[iDec++], r = c.res;
+      st.open--; st.decided++; st.waits.push(r.days * 24);
+      if (r.buyerWins) { sel[c.seller].lost++; st.refunded += c.claim; spawn(L.box, L.buyers[c.buyer], C.good, 3, now, 900); }
+      else spawn(L.box, L.sellers[c.seller], C.text, 3, now, 900);
+      if (c.problem && !r.buyerWins) st.lost += c.claim;
+      const wrong = r.buyerWins !== c.problem;
+      if (world === "tribunal") {
+        P.flash = { votes: r.votes, human: r.human, until: now + 700 };
+        const v = r.votes, score = `${Math.max(v.forBuyer, v.forSeller)}–${Math.min(v.forBuyer, v.forSeller)}`;
+        const how = r.appealed ? `appeal, human ${r.overturned ? "overturned" : "upheld"}` : r.human ? "split, human decided" : `panel ${score}`;
+        const out = r.buyerWins ? `refund ${inr(c.claim)}` : (c.problem ? "released to seller (wrong)" : "false claim rejected");
+        const outW = wrong ? (c.problem ? out : `false claim paid ${inr(c.claim)} (wrong)`) : out;
+        pushFeed(c.decideT, `${label(c)} → ${outW} · ${how} · ${fmtDur(r.days * 24)}`, wrong ? "hot" : r.buyerWins ? "win" : "", r.human || wrong, now);
+      } else {
+        const out = r.buyerWins ? (c.problem ? `refunded ${inr(c.claim)}` : `false claim paid ${inr(c.claim)}`) : (c.problem ? `refused, buyer loses ${inr(c.claim)}` : "rejected");
+        pushFeed(c.decideT, `${label(c)} → ticket closed after ${fmtDur(r.days * 24)}: ${out}`, r.buyerWins && c.problem ? "win" : "hot", false, now);
+      }
+    }
+    while (iSusp < D.suspensions.length && D.suspensions[iSusp].t <= simT) {
+      const s = D.suspensions[iSusp++]; sel[s.seller].suspended = true;
+      pushFeed(s.t, `${sel[s.seller].id} suspended after losing ${s.lost} of ${s.deals} deals`, "win", true, now);
+    }
+    const day = Math.min(D.daily.length - 1, Math.floor(simT / 24));
+    st.badShare = D.daily[day] ? D.daily[day].bad / Math.max(1, D.daily[day].deals) : 0;
+    st.suspended = iSusp;
+  }
+
+  function draw(now, reveal) {
+    const { W, H, buyers, sellers, box } = L;
+    ctx.clearRect(0, 0, W, H);
+    ctx.font = `500 11.5px ${C.body}`; ctx.fillStyle = C.muted; ctx.textBaseline = "alphabetic";
+    ctx.textAlign = "left"; ctx.fillText("Buyers' agents", 14, 24);
+    ctx.textAlign = "right"; ctx.fillText("Laptop sellers", W - 14, 24);
+    ctx.fillText("Hotels", W - 14, L.top + L.half * L.rowH + L.gap - 6);
+    // buyers
+    for (let i = 0; i < buyers.length; i++) {
+      const b = buyers[i], f = now - buyerFlash[i] < 900;
+      ctx.beginPath(); ctx.arc(b.x, b.y, f ? 4 : 3, 0, Math.PI * 2); ctx.fillStyle = f ? C.bad : C.muted; ctx.globalAlpha = f ? 1 : 0.55; ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // sellers
+    for (let i = 0; i < sel.length; i++) {
+      const s = sel[i], g = sellers[i];
+      ctx.fillStyle = C.sunken; ctx.fillRect(g.x, g.y, g.w, g.h);
+      if (world === "tribunal" && s.deals) { ctx.globalAlpha = Math.min(0.85, 4 * s.lost / (s.deals + 20)); ctx.fillStyle = C.bad; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.globalAlpha = 1; }
+      if (reveal && s.dishonest) { ctx.strokeStyle = C.bad; ctx.lineWidth = 1.5; ctx.setLineDash([3, 2]); ctx.strokeRect(g.x + .75, g.y + .75, g.w - 1.5, g.h - 1.5); ctx.setLineDash([]); }
+      if (s.suspended) { ctx.strokeStyle = C.text; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(g.x + 3, g.y + 3); ctx.lineTo(g.x + g.w - 3, g.y + g.h - 3); ctx.moveTo(g.x + g.w - 3, g.y + 3); ctx.lineTo(g.x + 3, g.y + g.h - 3); ctx.stroke(); }
+    }
+    // dispute box
+    ctx.fillStyle = C.surface; ctx.strokeStyle = world === "tribunal" ? C.tribunal : C.today; ctx.lineWidth = 2;
+    roundRect(box.x, box.y, box.w, box.h, 10); ctx.fill(); ctx.stroke();
+    ctx.textAlign = "center"; ctx.fillStyle = C.text; ctx.font = `600 13px ${C.body}`;
+    ctx.fillText(world === "tribunal" ? "Tribunal" : "Support queue", box.cx, box.y + 20);
+    if (world === "tribunal") {
+      const fl = P.flash && now < P.flash.until ? P.flash : null;
+      for (let j = 0; j < 3; j++) {
+        const x = box.cx + (j - 1) * 26, y = box.y + 44;
+        ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2);
+        let fill = C.sunken;
+        if (fl) { const v = fl.votes; fill = j < v.forBuyer ? C.good : j < v.forBuyer + v.forSeller ? C.text : C.sunken; }
+        ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = C.muted; ctx.lineWidth = 1; ctx.stroke();
+      }
+      if (P.flash && now < P.flash.until && P.flash.human) { ctx.fillStyle = C.muted; ctx.font = `500 11px ${C.body}`; ctx.fillText("to a human", box.cx, box.y + 68); }
+    }
+    // open claims as a stack of squares
+    const n = Math.max(0, st.open), cols = Math.max(6, Math.floor((box.w - 20) / 7)), rowsMax = Math.floor((box.h - (world === "tribunal" ? 96 : 56)) / 7);
+    const shown = Math.min(n, cols * rowsMax), gx = box.x + (box.w - cols * 7) / 2, gy = box.y + box.h - 30;
+    ctx.fillStyle = C.bad; ctx.globalAlpha = 0.75;
+    for (let k = 0; k < shown; k++) ctx.fillRect(gx + (k % cols) * 7, gy - Math.floor(k / cols) * 7, 5, 5);
+    ctx.globalAlpha = 1; ctx.fillStyle = C.text; ctx.font = `600 12px ${C.body}`;
+    ctx.fillText(`${n.toLocaleString("en-IN")} open claim${n === 1 ? "" : "s"}${n > shown ? ` (${(n - shown).toLocaleString("en-IN")} not shown)` : ""}`, box.cx, box.y + box.h - 10);
+    // particles
+    P.particles = P.particles.filter(q => now - q.start < q.dur);
+    for (const q of P.particles) {
+      const k = Math.min(1, (now - q.start) / q.dur), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      const x = q.x0 + (q.x1 - q.x0) * e, y = q.y0 + (q.y1 - q.y0) * e - Math.sin(Math.PI * k) * 14;
+      ctx.beginPath(); ctx.arc(x, y, q.r, 0, Math.PI * 2); ctx.fillStyle = q.color; ctx.globalAlpha = q.r < 2 ? 0.55 : 1; ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+  function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  function renderStats() {
+    const med = median(st.waits);
+    statsEl.innerHTML = [
+      ["Money buyers lost", inrShort(st.lost)],
+      ["Median wait for a decision", med == null ? "–" : fmtDur(med)],
+      ["Problems never pursued", st.gaveUp.toLocaleString("en-IN")],
+      ["Today's deals to bad sellers", (100 * (st.badShare || 0)).toFixed(0) + "%"],
+    ].map(([k, v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+    if (P.feedDirty) {
+      feedEl.innerHTML = P.feed.map(f => `<li class="${f.cls}"><span class="t">${clock(f.t)}</span><span>${esc(f.text)}</span></li>`).join("");
+      P.feedDirty = false;
+    }
+  }
+  layout();
+  return { advance, draw, renderStats, layout, st, get open() { return st.open; } };
+}
+
+// ---------------- controller ----------------
+const ids = { dis: "#p-dis", fal: "#p-false", ev: "#p-ev", vol: "#p-vol", days: "#p-days" };
+const params = () => ({ dishonest: +$(ids.dis).value / 100, falseClaims: +$(ids.fal).value / 100, evidence: +$(ids.ev).value / 100, perDay: +$(ids.vol).value, days: +$(ids.days).value });
+function syncOutputs() {
+  $("output[for=p-dis]").textContent = $(ids.dis).value + "%"; $("output[for=p-false]").textContent = $(ids.fal).value + "%";
+  $("output[for=p-ev]").textContent = $(ids.ev).value + "%"; $("output[for=p-vol]").textContent = (+$(ids.vol).value).toLocaleString("en-IN");
+  $("output[for=p-days]").textContent = $(ids.days).value;
+}
+let seed = 20261109, speed = 24, playing = true, simT = 0, last = 0, panels = [], hours = 0, statTick = 0, p = null;
+
+function start() {
+  syncOutputs(); readColors(); p = params();
+  const today = SIM.runWorld("today", p, seed), trib = SIM.runWorld("tribunal", p, seed);
+  hours = today.hours; simT = 0;
+  panels = [makePanel("today", today, $("#cv-today"), $("#stats-today"), $("#feed-today")),
+            makePanel("tribunal", trib, $("#cv-tribunal"), $("#stats-tribunal"), $("#feed-tribunal"))];
+  $("#feed-today").innerHTML = $("#feed-tribunal").innerHTML = "";
+  $("#summary").className = "summary"; $("#seedline").textContent = `Market ${seed}`;
+  playing = true; $("#play").textContent = "❚❚ Pause";
+}
+function frame(now) {
+  const dt = last ? Math.min(0.1, (now - last) / 1000) : 0; last = now;
+  if (playing && simT < hours) {
+    simT = Math.min(hours, simT + dt * speed);
+    const dealsPerSec = p.perDay / 24 * speed, sample = Math.min(1, 40 / dealsPerSec);
+    for (const P of panels) P.advance(simT, now, sample);
+    if (simT >= hours) finish();
+  }
+  const reveal = $("#reveal").checked;
+  for (const P of panels) P.draw(now, reveal);
+  if (now - statTick > 200) { statTick = now; panels.forEach(P => P.renderStats()); }
+  $("#clock").firstChild.nodeValue = clock(Math.min(simT, hours - 1e-6));
+  $("#prog").style.width = (100 * simT / hours) + "%";
+  requestAnimationFrame(frame);
+}
+function finish() {
+  playing = false; $("#play").textContent = "▶ Play";
+  const [a, b] = panels.map(P => P.st);
+  const ratio = b.lost ? Math.round(a.lost / b.lost) : null;
+  $("#summary").innerHTML = `<b>Run complete.</b> Over ${p.days} days, buyers lost ${inrShort(a.lost)} today against ${inrShort(b.lost)} with Tribunal${ratio ? ` (${ratio}× less)` : ""}. ` +
+    `Median wait: ${fmtDur(median(a.waits) || 0)} vs ${fmtDur(median(b.waits) || 0)}. Today still has ${a.open.toLocaleString("en-IN")} claims open; Tribunal has ${b.open.toLocaleString("en-IN")} and suspended ${b.suspended} sellers.`;
+  $("#summary").className = "summary show";
+}
+
+$("#play").addEventListener("click", () => {
+  if (simT >= hours) { start(); return; }
+  playing = !playing; $("#play").textContent = playing ? "❚❚ Pause" : "▶ Play";
+});
+$("#restart").addEventListener("click", start);
+$("#newmarket").addEventListener("click", () => { seed = Math.floor(Math.random() * 1e9); start(); });
+document.querySelectorAll("[data-speed]").forEach(b => b.addEventListener("click", () => {
+  speed = +b.dataset.speed; document.querySelectorAll("[data-speed]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+}));
+Object.values(ids).forEach(id => $(id).addEventListener("input", syncOutputs));
+Object.values(ids).forEach(id => $(id).addEventListener("change", start));
+addEventListener("resize", () => panels.forEach(P => P.layout()));
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readColors);
+new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+start();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

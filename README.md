@@ -16,6 +16,8 @@ A negotiating agent and a courthouse for agent commerce: structured offers, sign
 | `test_server.py` | API tests over real HTTP |
 | `mcp_server.py` | MCP server: lets any AI agent negotiate, sign and dispute deals |
 | `test_mcp_server.py` | MCP tests with a real client, in-process and over stdio |
+| `artifacts/` | Pitch deck source and links to the pitch, brief and demos |
+| `web/simulation.html` | Live animated market simulation: the same agent market runs side by side, today's dispute handling vs Tribunal |
 
 ## Run it
 
@@ -45,6 +47,13 @@ claude mcp add tribunal -- "$PWD/.venv/bin/python" "$PWD/mcp_server.py"
 ```
 
 Appeals are not exposed as a tool: only a human arbitrator can release a frozen escrow.
+
+## Live demo
+
+The interactive demo is published to GitHub Pages from `web/` on every push to `main`:
+https://hemanthdadi1.github.io/tribunal/ (simulation: https://hemanthdadi1.github.io/tribunal/simulation.html)
+
+One-time setup: in the repo's Settings → Pages, set **Source** to **GitHub Actions**.
 
 ## Design rules
 
